@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>New Modern Bakery | Artisanal Delights</title>
+  <!-- Google Fonts & Tailwind -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- GSAP & ScrollTrigger -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #0a0a0a;
+      font-family: 'Outfit', sans-serif;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1a1a1a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #f59e0b;
+      border-radius: 10px;
+    }
+    ::selection {
+      background: #f97316;
+      color: white;
+    }
+    /* Sticky canvas wrapper */
+    .sticky-wrap {
+      height: 500vh;
+      position: relative;
+    }
+    .sticky-canvas {
+      position: sticky;
+      top: 0;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+      background: #0f0e0a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    /* Text overlays */
+    .text-overlay {
+      position: absolute;
+      bottom: 12%;
+      left: 5%;
+      right: 5%;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .overlay-card {
+      max-width: 550px;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(12px);
+      border-radius: 2rem;
+      padding: 1.8rem 2rem;
+      border-left: 4px solid #f59e0b;
+      color: white;
+    }
+    @media (max-width: 768px) {
+      .overlay-card { padding: 1.2rem 1.5rem; max-width: 90%; }
+      .overlay-card h2 { font-size: 1.6rem; }
+    }
+    /* General sections */
+    section {
+      background: #0f0f0f;
+    }
+    .glow-btn {
+      transition: all 0.3s ease;
+    }
+    .glow-btn:hover {
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
+      transform: scale(1.02);
+    }
+    .flavor-pill {
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .flavor-pill.active {
+      background: #f59e0b;
+      color: black;
+      font-weight: bold;
+      box-shadow: 0 0 12px #f59e0b;
+    }
+    /* Fade-up animation */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.8s cubic-bezier(0.2, 0.9, 0.4, 1.1), transform 0.7s ease;
+    }
+    .fade-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      transition: opacity 0.5s ease;
+    }
+    .loading-bar {
+      width: 300px;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+    .loading-progress {
+      height: 100%;
+      background: #f59e0b;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .frame-counter {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.7);
+      color: #f59e0b;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-family: monospace;
+      z-index: 100;
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+    }
+  </style>
+</head>
+<body class="bg-black text-white">
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="text-amber-500 text-2xl font-bold">New Modern Bakery</div>
+    <div class="text-white/60 text-sm mt-2">Loading artisanal experience...</div>
+    <div class="loading-bar">
+      <div id="loadingProgress" class="loading-progress"></div>
+    </div>
+    <div id="loadingPercent" class="text-white/40 text-xs mt-2">0%</div>
+    <div id="loadingDetails" class="text-white/30 text-xs mt-4">Loading frames: 0/120</div>
+  </div>
+
+  <!-- Frame Counter (debug) -->
+  <div id="frameCounter" class="frame-counter">Frame: 0/120</div>
+
+  <!-- Navbar -->
+  <nav class="fixed top-0 left-0 w-full z-50 transition-all duration-300 backdrop-blur-xl bg-black/40 border-b border-white/10 py-3 px-6 md:px-10">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L15 8L9 12L12 18L6 14L2 12L6 10L12 2Z" fill="url(#grad)" stroke="#F59E0B" stroke-width="1.2"/>
+          <defs><linearGradient id="grad" x1="2" y1="2" x2="22" y2="22"><stop stop-color="#F97316"/><stop offset="1" stop-color="#FBBF24"/></linearGradient></defs>
+        </svg>
+        <span class="text-2xl font-bold bg-gradient-to-r from-orange-500 to-amber-400 bg-clip-text text-transparent">New Modern Bakery</span>
+      </div>
+      <button id="orderNowBtn" class="bg-gradient-to-r from-orange-500 to-amber-500 text-black font-semibold px-5 py-2 rounded-full text-sm transition-all glow-btn">Order Now</button>
+    </div>
+  </nav>
+
+  <main>
+    <!-- Sticky Canvas Section -->
+    <div class="sticky-wrap">
+      <div class="sticky-canvas">
+        <canvas id="heroCanvas" width="1920" height="1080"></canvas>
+        <!-- Text Overlays -->
+        <div class="text-overlay">
+          <div id="overlay1" class="overlay-card transition-all duration-500 opacity-100">
+            <h2 class="text-3xl md:text-5xl font-bold leading-tight">Artisan Sourdough.<br><span class="text-amber-400">Crafted with soul.</span></h2>
+            <p class="text-gray-200 mt-2 text-sm md:text-base">Slow fermentation • Organic flour • Stone-ground heritage</p>
+          </div>
+          <div id="overlay2" class="overlay-card transition-all duration-500 opacity-0 absolute top-0 left-5 right-5">
+            <h2 class="text-3xl md:text-5xl font-bold leading-tight">Flaky Croissants.<br><span class="text-amber-400">Parisian perfection.</span></h2>
+            <p class="text-gray-200 mt-2">Laminated dough • French butter • 24h resting</p>
+          </div>
+          <div id="overlay3" class="overlay-card transition-all duration-500 opacity-0 absolute top-0 left-5 right-5">
+            <h2 class="text-3xl md:text-5xl font-bold leading-tight">Sourdough Pizza.<br><span class="text-amber-400">Fire-baked bliss.</span></h2>
+            <p class="text-gray-200 mt-2">Wood-fired • San Marzano • Burrata finish</p>
+          </div>
+          <div id="overlay4" class="overlay-card transition-all duration-500 opacity-0 absolute top-0 left-5 right-5">
+            <h2 class="text-3xl md:text-5xl font-bold leading-tight">Morning Pastries.<br><span class="text-amber-400">Fresh daily.</span></h2>
+            <p class="text-gray-200 mt-2">Almond, chocolate, fruit danish — baked before dawn</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details Section -->
+    <section id="details" class="py-24 px-6 md:px-12 bg-gradient-to-b from-black to-zinc-900">
+      <div class="max-w-6xl mx-auto">
+        <div class="grid md:grid-cols-2 gap-12 items-center fade-up" id="detailBlock">
+          <div>
+            <span class="text-amber-500 uppercase tracking-wider text-sm font-semibold">Our Philosophy</span>
+            <h2 class="text-4xl md:text-5xl font-bold mt-2 leading-tight">Tradition meets <br><span class="text-amber-400">modern craft</span></h2>
+            <p class="text-gray-300 text-lg mt-6 leading-relaxed">At New Modern Bakery, we resurrect ancient grains and time-honored techniques. Every loaf is hand-shaped, every croissant meticulously folded. We believe bread is more than food — it's a story of patience, fire, and love.</p>
+            <ul class="mt-8 space-y-3">
+              <li class="flex items-center gap-3"><span class="text-amber-400 text-xl">✓</span> 100% Organic Sourdough Starter since 1987</li>
+              <li class="flex items-center gap-3"><span class="text-amber-400 text-xl">✓</span> Stone-milled flour from local mills</li>
+              <li class="flex items-center gap-3"><span class="text-amber-400 text-xl">✓</span> Low-intervention, no preservatives</li>
+            </ul>
+          </div>
+          <div class="rounded-2xl overflow-hidden shadow-2xl">
+            <img src="https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&h=400&fit=crop" alt="Bakery interior" class="w-full h-auto object-cover">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Freshness Section -->
+    <section class="py-24 px-6 md:px-12 bg-black">
+      <div class="max-w-6xl mx-auto text-center fade-up" id="freshBlock">
+        <span class="text-amber-500 font-semibold uppercase tracking-wide">From scratch daily</span>
+        <h2 class="text-4xl md:text-5xl font-bold mt-2">Baked before sunrise,<br>delivered by noon</h2>
+        <p class="text-gray-400 max-w-3xl mx-auto mt-6 text-lg">We start at 3am to ensure the freshest bread, pastries, and cakes. Our open kitchen lets you witness the magic. No frozen dough, no shortcuts — only honest baking.</p>
+        <div class="grid sm:grid-cols-3 gap-8 mt-16">
+          <div class="bg-white/5 p-6 rounded-2xl backdrop-blur-sm"><div class="text-4xl mb-2">🥖</div><h3 class="font-bold text-xl">Sourdough</h3><p class="text-gray-400">Tangy, chewy crust, 48h fermentation</p></div>
+          <div class="bg-white/5 p-6 rounded-2xl backdrop-blur-sm"><div class="text-4xl mb-2">🥐</div><h3 class="font-bold text-xl">Viennoiserie</h3><p class="text-gray-400">Buttery, honeycomb layers</p></div>
+          <div class="bg-white/5 p-6 rounded-2xl backdrop-blur-sm"><div class="text-4xl mb-2">🍰</div><h3 class="font-bold text-xl">Cakes & Tarts</h3><p class="text-gray-400">Seasonal fruits, whipped ganache</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Buy Now Section -->
+    <section class="py-20 px-6 bg-gradient-to-r from-amber-900/20 to-orange-900/20">
+      <div class="max-w-5xl mx-auto text-center fade-up" id="buyBlock">
+        <h2 class="text-4xl md:text-5xl font-bold">Taste the heritage</h2>
+        <p class="text-gray-300 text-xl mt-3">Choose your bakery box — curated for freshness</p>
+        <div class="flex flex-wrap justify-center gap-8 mt-12">
+          <div class="bg-black/60 backdrop-blur-lg rounded-3xl p-6 w-72 border border-amber-500/30">
+            <div class="text-5xl mb-3">🍞</div>
+            <h3 class="text-2xl font-bold">Sourdough Box</h3>
+            <p class="text-gray-300 mt-1">Classic loaf + sourdough starter kit</p>
+            <div class="text-3xl font-bold text-amber-400 mt-4">₹449</div>
+            <button class="add-to-cart mt-5 w-full bg-amber-500 text-black font-bold py-2 rounded-full hover:bg-amber-400 transition">Add to Cart</button>
+          </div>
+          <div class="bg-black/60 backdrop-blur-lg rounded-3xl p-6 w-72 border border-amber-500/30">
+            <div class="text-5xl mb-3">🥐</div>
+            <h3 class="text-2xl font-bold">Parisian Morning</h3>
+            <p class="text-gray-300 mt-1">6 pcs assorted croissants + butter</p>
+            <div class="text-3xl font-bold text-amber-400 mt-4">₹649</div>
+            <button class="add-to-cart mt-5 w-full bg-amber-500 text-black font-bold py-2 rounded-full hover:bg-amber-400 transition">Add to Cart</button>
+          </div>
+          <div class="bg-black/60 backdrop-blur-lg rounded-3xl p-6 w-72 border border-amber-500/30">
+            <div class="text-5xl mb-3">🍰</div>
+            <h3 class="text-2xl font-bold">Signature Cake</h3>
+            <p class="text-gray-300 mt-1">Seasonal fruit tart / Chocolate ganache</p>
+            <div class="text-3xl font-bold text-amber-400 mt-4">₹799</div>
+            <button class="add-to-cart mt-5 w-full bg-amber-500 text-black font-bold py-2 rounded-full hover:bg-amber-400 transition">Add to Cart</button>
+          </div>
+        </div>
+        <div class="mt-12 text-sm text-gray-400 flex justify-center gap-6 flex-wrap">
+          <span>✅ Next-day delivery in metros</span>
+          <span>❄️ Eco-friendly chilled packaging</span>
+          <span>🔄 Satisfaction guaranteed</span>
+        </div>
+        <button id="bulkOrderBtn" class="mt-10 bg-white text-black px-8 py-3 rounded-full font-bold text-lg shadow-xl hover:bg-amber-100 transition">Order Now — Fresh Batch</button>
+      </div>
+    </section>
+
+    <!-- Next Journey CTA -->
+    <div class="relative overflow-hidden bg-black py-16">
+      <div class="absolute inset-0 bg-gradient-to-r from-amber-600/20 to-orange-600/20 skew-y-2 transform -rotate-1"></div>
+      <div class="relative text-center">
+        <h2 class="text-3xl md:text-5xl font-bold italic">Continue the journey →</h2>
+        <button id="nextJourneyBtn" class="mt-6 bg-amber-500 text-black px-10 py-3 text-lg font-bold rounded-full shadow-2xl inline-flex items-center gap-2 hover:scale-105 transition">Discover more delights <span>✨</span></button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-white pt-16 pb-8 px-6">
+    <div class="max-w-7xl mx-auto grid md:grid-cols-4 gap-8">
+      <div>
+        <div class="flex items-center gap-2 mb-4">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="url(#grad2)"><path d="M12 2L15 8L9 12L12 18L6 14L2 12L6 10L12 2Z" fill="url(#grad2)"/></svg>
+          <span class="text-xl font-bold">New Modern Bakery</span>
+        </div>
+        <p class="text-gray-400 text-sm">Artisanal bakery since 1987. Real bread, real taste.</p>
+        <defs><linearGradient id="grad2" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#F97316"/><stop offset="1" stop-color="#FBBF24"/></linearGradient></defs>
+      </div>
+      <div><h4 class="font-semibold text-lg mb-3">Shop</h4><ul class="space-y-2 text-gray-400 text-sm"><li>Sourdough loaves</li><li>Pastry Boxes</li><li>Gluten-free options</li><li>Gift cards</li></ul></div>
+      <div><h4 class="font-semibold text-lg mb-3">Support</h4><ul class="space-y-2 text-gray-400 text-sm"><li>FAQ</li><li>Shipping & Returns</li><li>Wholesale inquiry</li><li>Contact</li></ul></div>
+      <div><h4 class="font-semibold text-lg mb-3">Newsletter</h4><div class="flex"><input type="email" placeholder="Your email" class="bg-black/50 p-2 rounded-l w-full text-sm"><button class="bg-amber-500 px-3 rounded-r text-black font-bold">→</button></div><p class="text-gray-500 text-xs mt-2">Fresh bakes & offers weekly.</p></div>
+    </div>
+    <div class="border-t border-gray-800 mt-12 pt-6 text-center text-gray-500 text-sm">© 2025 New Modern Bakery — Crust, crumb & heart.</div>
+  </footer>
+
+  <!-- Navigation Pills -->
+  <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex gap-3 bg-black/70 backdrop-blur-xl p-2 rounded-full border border-white/20">
+    <button data-section="hero" class="flavor-pill px-4 py-2 rounded-full text-sm font-medium text-white/80 hover:text-white transition active">Sourdough</button>
+    <button data-section="details" class="flavor-pill px-4 py-2 rounded-full text-sm font-medium text-white/80 hover:text-white transition">Croissant</button>
+    <button data-section="freshBlock" class="flavor-pill px-4 py-2 rounded-full text-sm font-medium text-white/80 hover:text-white transition">Pastries</button>
+    <button data-section="buyBlock" class="flavor-pill px-4 py-2 rounded-full text-sm font-medium text-white/80 hover:text-white transition">Order</button>
+  </div>
+
+  <!-- Navigation Arrows -->
+  <button id="leftArrow" class="fixed left-4 md:left-8 top-1/2 -translate-y-1/2 z-40 bg-black/50 backdrop-blur rounded-full p-3 text-2xl border border-white/20 hover:bg-amber-500 transition">←</button>
+  <button id="rightArrow" class="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 z-40 bg-black/50 backdrop-blur rounded-full p-3 text-2xl border border-white/20 hover:bg-amber-500 transition">→</button>
+
+  <script>
+    // ========== IMAGE SEQUENCE LOADER FOR ezgif-frame-XXX.jpg ==========
+    const canvas = document.getElementById('heroCanvas');
+    const ctx = canvas.getContext('2d');
+    let frameImages = [];
+    const totalFrames = 208;
+    let loadedFrames = 0;
+    let isReady = false;
+    let currentDisplayFrame = 0;
+    
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingProgress = document.getElementById('loadingProgress');
+    const loadingPercent = document.getElementById('loadingPercent');
+    const loadingDetails = document.getElementById('loadingDetails');
+    const frameCounter = document.getElementById('frameCounter');
+    
+    // Function to format frame number with leading zeros (001, 002, etc.)
+    function formatFrameNumber(num) {
+      return num.toString().padStart(3, '0');
+    }
+    
+    // Function to load images with the naming pattern: ezgif-frame-001.jpg to ezgif-frame-120.jpg
+    function loadImageSequence() {
+      for(let i = 1; i <= totalFrames; i++) {
+        const img = new Image();
+        const frameNumber = formatFrameNumber(i);
+        // IMPORTANT: Place your 120 images in: /images/bakery_sequence/ezgif-frame-001.jpg to ezgif-frame-120.jpg
+        // Update this path if your images are in a different location
+        img.src = `images/bakery_sequence/ezgif-frame-${frameNumber}.jpg`;
+        
+        img.onload = () => {
+          loadedFrames++;
+          const percent = Math.round((loadedFrames / totalFrames) * 100);
+          loadingProgress.style.width = `${percent}%`;
+          loadingPercent.textContent = `${percent}%`;
+          if(loadingDetails) {
+            loadingDetails.textContent = `Loading frames: ${loadedFrames}/${totalFrames}`;
+          }
+          
+          if(loadedFrames === totalFrames) {
+            isReady = true;
+            console.log('✅ All 120 frames loaded successfully!');
+            console.log(`📁 Loaded from: /images/bakery_sequence/ezgif-frame-001.jpg to ezgif-frame-120.jpg`);
+            setTimeout(() => {
+              loadingOverlay.style.opacity = '0';
+              setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+              }, 500);
+            }, 500);
+            updateFrame(0);
+          }
+        };
+        
+        img.onerror = () => {
+          console.warn(`⚠️ Could not load frame ezgif-frame-${frameNumber}.jpg - trying alternative extensions...`);
+          
+          // Try with .webp extension as fallback
+          const fallbackImg = new Image();
+          fallbackImg.src = `/images/bakery_sequence/ezgif-frame-${frameNumber}.webp`;
+          
+          fallbackImg.onload = () => {
+            frameImages[i-1] = fallbackImg;
+            loadedFrames++;
+            const percent = Math.round((loadedFrames / totalFrames) * 100);
+            loadingProgress.style.width = `${percent}%`;
+            loadingPercent.textContent = `${percent}%`;
+            if(loadingDetails) {
+              loadingDetails.textContent = `Loading frames: ${loadedFrames}/${totalFrames}`;
+            }
+            
+            if(loadedFrames === totalFrames) {
+              isReady = true;
+              console.log('✅ All 120 frames loaded successfully (using .webp fallback)!');
+              setTimeout(() => {
+                loadingOverlay.style.opacity = '0';
+                setTimeout(() => {
+                  loadingOverlay.style.display = 'none';
+                }, 500);
+              }, 500);
+              updateFrame(0);
+            }
+          };
+          
+          fallbackImg.onerror = () => {
+            console.warn(`⚠️ Could not load frame ezgif-frame-${frameNumber}.jpg or .webp - using fallback animation`);
+            // Create fallback animated frame with frame number
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = 1920;
+            offCanvas.height = 1080;
+            const offCtx = offCanvas.getContext('2d');
+            
+            // Create bakery-themed fallback animation
+            const gradient = offCtx.createLinearGradient(0, 0, offCanvas.width, offCanvas.height);
+            const hue = 30 + (i / totalFrames) * 20;
+            gradient.addColorStop(0, `hsl(${hue}, 70%, 15%)`);
+            gradient.addColorStop(1, `hsl(${hue + 10}, 80%, 25%)`);
+            offCtx.fillStyle = gradient;
+            offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+            
+            // Draw bakery elements
+            offCtx.fillStyle = '#f59e0b';
+            offCtx.font = `bold ${offCanvas.width * 0.1}px 'Outfit'`;
+            offCtx.textAlign = 'center';
+            offCtx.fillText('🥖', offCanvas.width/2, offCanvas.height/2 - 50);
+            
+            offCtx.font = `bold ${offCanvas.width * 0.04}px 'Outfit'`;
+            offCtx.fillStyle = '#ffd966';
+            offCtx.fillText('New Modern Bakery', offCanvas.width/2, offCanvas.height/2 + 80);
+            
+            offCtx.font = `24px 'Outfit'`;
+            offCtx.fillStyle = '#ffffff80';
+            offCtx.fillText(`Frame ${i} of ${totalFrames}`, offCanvas.width/2, offCanvas.height - 100);
+            
+            offCtx.font = `18px 'Outfit'`;
+            offCtx.fillStyle = '#f59e0b';
+            offCtx.fillText('📁 Place your images in /images/bakery_sequence/ folder', offCanvas.width/2, offCanvas.height - 50);
+            offCtx.fillStyle = '#ffaa44';
+            offCtx.fillText('Expected: ezgif-frame-001.jpg to ezgif-frame-120.jpg', offCanvas.width/2, offCanvas.height - 25);
+            
+            const fallbackDataURL = offCanvas.toDataURL();
+            const fallbackFinalImg = new Image();
+            fallbackFinalImg.src = fallbackDataURL;
+            fallbackFinalImg.onload = () => {
+              frameImages[i-1] = fallbackFinalImg;
+              loadedFrames++;
+              const percent = Math.round((loadedFrames / totalFrames) * 100);
+              loadingProgress.style.width = `${percent}%`;
+              loadingPercent.textContent = `${percent}%`;
+              if(loadingDetails) {
+                loadingDetails.textContent = `Loading frames: ${loadedFrames}/${totalFrames} (using fallback)`;
+              }
+              
+              if(loadedFrames === totalFrames) {
+                isReady = true;
+                console.log('⚠️ Using fallback animation - add your images to /images/bakery_sequence/');
+                setTimeout(() => {
+                  loadingOverlay.style.opacity = '0';
+                  setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                  }, 500);
+                }, 500);
+                updateFrame(0);
+              }
+            };
+            frameImages[i-1] = fallbackFinalImg;
+          };
+          
+          frameImages[i-1] = fallbackImg;
+        };
+        
+        frameImages.push(img);
+      }
+    }
+    
+    function updateFrame(progress) {
+      if(!isReady && frameImages.length === totalFrames) {
+        // Wait a bit more for loading
+        return;
+      }
+      
+      let frameIndex = Math.floor(progress * (totalFrames - 1));
+      frameIndex = Math.min(totalFrames - 1, Math.max(0, frameIndex));
+      currentDisplayFrame = frameIndex + 1;
+      
+      // Update frame counter display
+      if(frameCounter) {
+        frameCounter.textContent = `Frame: ${currentDisplayFrame}/${totalFrames}`;
+      }
+      
+      if(frameImages[frameIndex] && frameImages[frameIndex].complete) {
+        // Set canvas dimensions on first frame
+        if(frameIndex === 0 && frameImages[0].width && frameImages[0].width > 0) {
+          canvas.width = frameImages[0].width;
+          canvas.height = frameImages[0].height;
+        }
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(frameImages[frameIndex], 0, 0, canvas.width, canvas.height);
+      }
+    }
+    
+    // Start loading images
+    loadImageSequence();
+    
+    // ========== SCROLL TRIGGER ANIMATION ==========
+    gsap.registerPlugin(ScrollTrigger);
+    
+    ScrollTrigger.create({
+      trigger: '.sticky-wrap',
+      start: "top top",
+      end: "bottom bottom",
+      scrub: 1.2,
+      onUpdate: (self) => {
+        const progress = self.progress;
+        updateFrame(progress);
+        
+        // Text overlay transitions based on scroll progress
+        const o1 = document.getElementById('overlay1');
+        const o2 = document.getElementById('overlay2');
+        const o3 = document.getElementById('overlay3');
+        const o4 = document.getElementById('overlay4');
+        
+        if(progress < 0.25) {
+          o1.style.opacity = '1';
+          o2.style.opacity = '0';
+          o3.style.opacity = '0';
+          o4.style.opacity = '0';
+        } else if(progress < 0.5) {
+          o1.style.opacity = '0';
+          o2.style.opacity = '1';
+          o3.style.opacity = '0';
+          o4.style.opacity = '0';
+        } else if(progress < 0.75) {
+          o1.style.opacity = '0';
+          o2.style.opacity = '0';
+          o3.style.opacity = '1';
+          o4.style.opacity = '0';
+        } else {
+          o1.style.opacity = '0';
+          o2.style.opacity = '0';
+          o3.style.opacity = '0';
+          o4.style.opacity = '1';
+        }
+      }
+    });
+    
+    // ========== FADE-UP OBSERVER ==========
+    const fadeElements = document.querySelectorAll('.fade-up');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if(entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.2 });
+    fadeElements.forEach(el => observer.observe(el));
+    
+    // ========== NAVIGATION ==========
+    const sectionsMap = {
+      hero: 0,
+      details: document.getElementById('details'),
+      freshBlock: document.getElementById('freshBlock'),
+      buyBlock: document.getElementById('buyBlock')
+    };
+    
+    document.querySelectorAll('.flavor-pill').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const sectionKey = btn.getAttribute('data-section');
+        if(sectionKey === 'hero') {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if(sectionsMap[sectionKey]) {
+          sectionsMap[sectionKey].scrollIntoView({ behavior: 'smooth' });
+        }
+        document.querySelectorAll('.flavor-pill').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+    
+    // Arrow navigation
+    const sectionsArr = ['hero', 'details', 'freshBlock', 'buyBlock'];
+    let activeIdx = 0;
+    
+    function scrollToSection(index) {
+      if(index === 0) {
+        window.scrollTo({top: 0, behavior: 'smooth'});
+      } else if(index === 1) {
+        document.getElementById('details').scrollIntoView({behavior: 'smooth'});
+      } else if(index === 2) {
+        document.getElementById('freshBlock').scrollIntoView({behavior: 'smooth'});
+      } else if(index === 3) {
+        document.getElementById('buyBlock').scrollIntoView({behavior: 'smooth'});
+      }
+      document.querySelectorAll('.flavor-pill').forEach((p, i) => {
+        if(i === index) p.classList.add('active');
+        else p.classList.remove('active');
+      });
+    }
+    
+    document.getElementById('leftArrow').addEventListener('click', () => {
+      activeIdx = (activeIdx - 1 + sectionsArr.length) % sectionsArr.length;
+      scrollToSection(activeIdx);
+    });
+    
+    document.getElementById('rightArrow').addEventListener('click', () => {
+      activeIdx = (activeIdx + 1) % sectionsArr.length;
+      scrollToSection(activeIdx);
+    });
+    
+    // Order buttons
+    const orderBtns = ['orderNowBtn', 'bulkOrderBtn', 'nextJourneyBtn'];
+    orderBtns.forEach(id => {
+      const btn = document.getElementById(id);
+      if(btn) {
+        btn.addEventListener('click', () => {
+          document.getElementById('buyBlock').scrollIntoView({ behavior: 'smooth' });
+        });
+      }
+    });
+    
+    // Add to cart alerts
+    document.querySelectorAll('.add-to-cart').forEach(btn => {
+      btn.addEventListener('click', () => {
+        alert('✨ Added to cart! Freshness guaranteed ✨');
+      });
+    });
+    
+    // Navbar scroll effect
+    window.addEventListener('scroll', () => {
+      const nav = document.querySelector('nav');
+      if(window.scrollY > 100) {
+        nav.style.background = 'rgba(0,0,0,0.9)';
+        nav.style.backdropFilter = 'blur(16px)';
+      } else {
+        nav.style.background = 'rgba(0,0,0,0.4)';
+        nav.style.backdropFilter = 'blur(12px)';
+      }
+    });
+    
+    // Resize handler for canvas
+    function handleResize() {
+      if(frameImages[0] && frameImages[0].complete && frameImages[0].width) {
+        canvas.width = frameImages[0].width;
+        canvas.height = frameImages[0].height;
+      }
+    }
+    window.addEventListener('resize', handleResize);
+    
+    console.log(`
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║   🥖 New Modern Bakery is ready! 🥖                            ║
+    ║                                                               ║
+    ║   📁 Your images should be in:                                ║
+    ║      /images/bakery_sequence/                                 ║
+    ║                                                               ║
+    ║   📸 Expected file names:                                     ║
+    ║      ezgif-frame-001.jpg                                      ║
+    ║      ezgif-frame-002.jpg                                      ║
+    ║      ...                                                      ║
+    ║      ezgif-frame-120.jpg                                      ║
+    ║                                                               ║
+    ║   💡 Tip: If you have .webp files, they'll work too!          ║
+    ╚═══════════════════════════════════════════════════════════════╝
+    `);
+  </script>
+</body>
+</html>
